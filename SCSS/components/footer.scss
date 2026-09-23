@@ -1,0 +1,71 @@
+// =====================================================
+//  Pie de página y botón de WhatsApp
+// =====================================================
+footer {
+    background: $dark;
+    color: #b9c4c9;
+    padding: 3.5rem 0 0;
+    font-size: .95rem;
+
+    .logo-pie { height: 80px; width: auto; margin-bottom: 1rem; }
+
+    h4 {
+        color: $white;
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        letter-spacing: .05em;
+    }
+
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { margin-bottom: .6rem; }
+    li i { color: $teal; width: 22px; }
+
+    a {
+        color: #b9c4c9;
+        text-decoration: none;
+        &:hover { color: $teal; }
+    }
+}
+
+.redes {
+    display: flex;
+    gap: .75rem;
+    a {
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        background: rgba($white, .08);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        color: $white;
+        &:hover { background: $teal; color: $white; }
+    }
+}
+
+.pie-final {
+    border-top: 1px solid rgba($white, .1);
+    margin-top: 2.5rem;
+    padding: 1.25rem 0;
+    text-align: center;
+    font-size: .85rem;
+}
+
+.wasap {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: #25d366;
+    color: $white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .25);
+    z-index: 999;
+    transition: transform .2s;
+    &:hover { transform: scale(1.08); color: $white; }
+}

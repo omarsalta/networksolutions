@@ -1,0 +1,33 @@
+// =====================================================
+//  Variables y mixins (colores tomados del logo NS)
+// =====================================================
+$teal:        #00a1a6;   // verde agua del logo (detalles, íconos, fondos oscuros)
+$teal-dark:   #00797d;   // botones y links (buen contraste con blanco)
+$teal-light:  #e6f6f6;   // fondos suaves
+$dark:        #1e2a30;   // gris oscuro: pie, títulos
+$text:        #2b3a40;
+$muted:       #5b6b72;
+$bg-soft:     #f4f8f8;
+$white:       #ffffff;
+$border:      #dfe8ea;
+
+$font:        "Poppins", sans-serif;
+$radius:      12px;
+$shadow:      0 6px 20px rgba(30, 42, 48, .08);
+$shadow-hover:0 12px 28px rgba(30, 42, 48, .14);
+$section-y:   4.5rem;
+
+@mixin overlay($img, $alpha: .62) {
+    background-image: linear-gradient(rgba($dark, $alpha), rgba($dark, $alpha)), url($img);
+    background-size: cover;
+    background-position: center;
+}
+
+@mixin card {
+    background: $white;
+    border: 1px solid $border;
+    border-radius: $radius;
+    box-shadow: $shadow;
+    transition: transform .2s, box-shadow .2s;
+    &:hover { transform: translateY(-4px); box-shadow: $shadow-hover; }
+}

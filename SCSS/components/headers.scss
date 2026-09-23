@@ -1,0 +1,74 @@
+// =====================================================
+//  Encabezado (menú) y portada de cada página
+// =====================================================
+.navbar-ns {
+    background: $white;
+    box-shadow: 0 2px 12px rgba($dark, .08);
+    padding: .5rem 0;
+
+    .logo-nav { height: 56px; width: auto; }
+
+    .nav-link {
+        color: $dark;
+        font-weight: 500;
+        padding: .5rem 1rem !important;
+        position: relative;
+
+        &::after {
+            content: "";
+            position: absolute;
+            left: 1rem; right: 1rem; bottom: .2rem;
+            height: 2px;
+            background: $teal;
+            transform: scaleX(0);
+            transition: transform .2s;
+        }
+        &:hover, &.active { color: $teal-dark; }
+        &:hover::after, &.active::after { transform: scaleX(1); }
+    }
+}
+
+// Portada (hero): misma estructura en todas las páginas
+.hero {
+    color: $white;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    min-height: 42vh;
+    padding: 4rem 0;
+
+    h1 {
+        color: $white;
+        font-size: 2.6rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    p {
+        font-size: 1.1rem;
+        max-width: 720px;
+        margin: 0 auto;
+        color: rgba($white, .9);
+    }
+    .etiqueta {
+        display: inline-block;
+        font-size: .85rem;
+        letter-spacing: .15em;
+        text-transform: uppercase;
+        color: $teal;
+        font-weight: 600;
+        margin-bottom: .75rem;
+    }
+    .hero-botones {
+        margin-top: 2rem;
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
+
+.hero-inicio    { @include overlay('../img/bienve1.jpg', .66); min-height: 78vh; }
+.hero-servicios { @include overlay('../img/abono.jpg'); }
+.hero-productos { @include overlay('../img/accesorio.jpg', .7); }
+.hero-nosotros  { @include overlay('../img/nosotros.jpg'); }
+.hero-contacto  { @include overlay('../img/implementa1.jpg'); }

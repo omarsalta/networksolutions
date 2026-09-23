@@ -1,0 +1,28 @@
+// =====================================================
+//  Adaptación a tablet y celular
+// =====================================================
+@media screen and (max-width: 991px) {
+    .navbar-ns .nav-link::after { display: none; }
+    .navbar-ns .navbar-collapse { padding: .5rem 0 1rem; }
+}
+
+@media screen and (max-width: 768px) {
+    .seccion { padding: 3rem 0; }
+    .titulo-seccion h2 { font-size: 1.6rem; }
+
+    .hero { min-height: 34vh; padding: 3rem 0; }
+    .hero h1 { font-size: 1.8rem; }
+    .hero p { font-size: 1rem; }
+    .hero-inicio { min-height: 70vh; }
+
+    .fila-destacada { margin-bottom: 3rem; }
+    .fila-destacada img { height: 220px; margin-bottom: 1.5rem; }
+
+    .lista-check { grid-template-columns: 1fr; }
+    .plan, .form-ns { padding: 1.75rem; }
+
+    .navbar-ns .logo-nav { height: 46px; }
+    footer { text-align: center; }
+    footer .redes { justify-content: center; }
+    .wasap { width: 52px; height: 52px; font-size: 1.75rem; right: 14px; bottom: 14px; }
+}

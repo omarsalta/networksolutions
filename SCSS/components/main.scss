@@ -1,0 +1,167 @@
+// =====================================================
+//  Contenido principal
+// =====================================================
+
+// ---------- Tarjetas con ícono (inicio y servicios) ----------
+.tarjeta {
+    @include card;
+    padding: 2rem 1.5rem;
+    height: 100%;
+    text-align: center;
+
+    h3 { font-size: 1.15rem; margin: 1rem 0 .5rem; }
+    p  { color: $muted; font-size: .95rem; margin: 0; }
+}
+
+.icono-circulo {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: $teal-light;
+    color: $teal-dark;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+}
+
+// ---------- Filas imagen + texto (inicio y nosotros) ----------
+.fila-destacada {
+    align-items: center;
+    margin-bottom: 4rem;
+    &:last-child { margin-bottom: 0; }
+
+    img {
+        width: 100%;
+        height: 320px;
+        object-fit: cover;
+        border-radius: $radius;
+        box-shadow: $shadow;
+    }
+    h3 { font-size: 1.5rem; margin-bottom: 1rem; }
+    p  { color: $muted; }
+}
+
+// ---------- Banda de llamada a la acción ----------
+.cta {
+    background: $teal-dark;
+    color: $white;
+    text-align: center;
+    padding: 3.5rem 0;
+
+    h2 { color: $white; font-size: 1.8rem; margin-bottom: .5rem; }
+    p  { color: rgba($white, .9); margin-bottom: 1.5rem; }
+    .btn-ns-light { font-weight: 600; }
+}
+
+// ---------- Servicios ----------
+.plan {
+    @include card;
+    padding: 2.5rem;
+    height: 100%;
+    &:hover { transform: none; }
+
+    h3 { font-size: 1.5rem; margin-bottom: .75rem; }
+    p  { color: $muted; }
+}
+
+.lista-check {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem 1.5rem;
+
+    li { display: flex; align-items: center; gap: .6rem; font-weight: 500; }
+    i  { color: $teal; }
+}
+
+// ---------- Productos ----------
+.producto {
+    @include card;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    .producto-img {
+        background: $white;
+        height: 200px;
+        padding: 1.25rem;
+        border-bottom: 1px solid $border;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        img { max-height: 100%; object-fit: contain; }
+    }
+    .producto-cuerpo {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        h3 { font-size: 1.15rem; margin-bottom: .5rem; }
+        p  { color: $muted; font-size: .95rem; flex: 1; }
+    }
+}
+
+// ---------- Nosotros: valores ----------
+.valor {
+    border-left: 4px solid $teal;
+    background: $white;
+    border-radius: 0 $radius $radius 0;
+    padding: 1.5rem;
+    box-shadow: $shadow;
+    height: 100%;
+    h3 { font-size: 1.1rem; margin-bottom: .5rem; }
+    p  { color: $muted; margin: 0; font-size: .95rem; }
+}
+
+// ---------- Contacto ----------
+.form-ns {
+    @include card;
+    padding: 2.5rem;
+    &:hover { transform: none; }
+
+    h2 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+    .form-label { font-weight: 500; color: $dark; }
+    .form-control {
+        border-radius: 8px;
+        padding: .7rem .9rem;
+        border-color: $border;
+        &:focus { border-color: $teal; box-shadow: 0 0 0 .2rem rgba($teal, .2); }
+    }
+}
+
+.datos-contacto {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+
+    li {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 1.25rem;
+    }
+    i {
+        width: 44px; height: 44px; flex-shrink: 0;
+        border-radius: 50%;
+        background: $teal-light;
+        color: $teal-dark;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    strong { display: block; color: $dark; }
+    a, span { color: $muted; text-decoration: none; }
+    a:hover { color: $teal-dark; }
+}
+
+.mapa {
+    width: 100%;
+    height: 260px;
+    border: 0;
+    border-radius: $radius;
+    box-shadow: $shadow;
+}
