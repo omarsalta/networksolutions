@@ -72,3 +72,19 @@
 .hero-productos { @include overlay('../img/accesorio.jpg', .7); }
 .hero-nosotros  { @include overlay('../img/nosotros.jpg'); }
 .hero-contacto  { @include overlay('../img/implementa1.jpg'); }
+
+/* Botón de acceso al sistema de gestión (menú) */
+.navbar-ns .nav-gestion {
+  display: flex;
+  align-items: center;
+  margin-left: 0.5rem;
+}
+.navbar-ns .btn-gestion {
+  padding: 0.4rem 1.1rem;
+  font-size: 0.9rem;
+}
+@media (max-width: 991.98px) {
+  .navbar-ns .nav-gestion {
+    margin: 0.5rem 0 0.75rem 1rem;
+  }
+}
