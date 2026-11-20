@@ -2,7 +2,6 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gestión</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -158,6 +157,17 @@
     .fila-rep, .fila-compra { grid-template-columns: 1fr 70px; }
   }
 
+  /* Presupuestos y remitos (negocios sin órdenes de servicio) */
+  body.modo-presupuestos nav button[data-tab=ordenes], body.modo-presupuestos #tab-ordenes { display: none !important; }
+  body:not(.modo-presupuestos) .solo-presup { display: none !important; }
+  .e-Pendiente { background: #e8eefc; color: #1f4fbf; }
+  .e-Confirmado { background: #dcf5e7; color: #137a45; }
+  .e-Confirmado-parcial { background: #fff4d6; color: #8a6200; }
+  .e-Vencido { background: #e6e8ec; color: #4a5263; }
+  .e-Anulado { background: #fde2e2; color: #b42323; }
+  td input.desc { padding: 5px 8px; font-size: 14px; }
+  #tbPresItems td input { padding: 5px 8px; font-size: 14px; }
+
   /* Roles: lo que no corresponde al usuario se oculta (la base igual lo bloquea) */
   body:not(.rol-admin) .solo-admin { display: none !important; }
   body.rol-tecnico .no-tecnico { display: none !important; }
@@ -175,7 +185,7 @@
 <div id="login" class="hidden">
   <form id="frmLogin">
     <h1 id="tituloLogin">Gestión</h1>
-    <div style="color:var(--muted);margin-top:-8px">Iniciar Sesion</div>
+    <div style="color:var(--muted);margin-top:-8px">Gestión del servicio técnico</div>
     <div><label>Email</label><input type="email" name="email" required autocomplete="username"></div>
     <div><label>Contraseña</label><input type="password" name="password" required autocomplete="current-password"></div>
     <button class="primary" type="submit">Ingresar</button>
@@ -207,6 +217,7 @@
 
   <nav>
     <button data-tab="ordenes" class="active">Órdenes</button>
+    <button data-tab="presupuestos" class="no-tecnico solo-presup">Presupuestos</button>
     <button data-tab="clientes" class="no-tecnico">Clientes</button>
     <button data-tab="ventas" class="no-tecnico">Ventas</button>
     <button data-tab="articulos" class="no-tecnico">Artículos</button>
@@ -236,6 +247,40 @@
           <thead><tr><th>N°</th><th>Ingreso</th><th>Cliente</th><th>Equipo</th><th>Falla</th><th>Técnico / fecha</th><th>Estado</th><th class="num no-tecnico">Importe</th><th class="no-tecnico">Cobro</th><th></th></tr></thead>
           <tbody id="tbOrdenes"></tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- PRESUPUESTOS Y REMITOS (negocios que no usan órdenes de servicio) -->
+    <section id="tab-presupuestos" class="panel hidden">
+      <div class="pestanas" id="presPestanas">
+        <button type="button" class="activa" data-vista="presupuestos">Presupuestos</button>
+        <button type="button" data-vista="remitos">Remitos</button>
+      </div>
+      <div id="vistaPresupuestos">
+        <div class="resumen" id="resumenPres"></div>
+        <div class="toolbar">
+          <input id="buscarPres" placeholder="Buscar por N°, cliente o artículo...">
+          <button class="primary" id="btnNuevoPres">+ Nuevo presupuesto</button>
+        </div>
+        <div class="tabla-wrap">
+          <table>
+            <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Renglones</th><th>Vence</th><th class="num">Total</th><th>Estado</th><th>Remito</th><th></th></tr></thead>
+            <tbody id="tbPresupuestos"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="vistaRemitos" class="hidden">
+        <div class="toolbar">
+          <input id="buscarRemito" placeholder="Buscar por N°, cliente o entrega...">
+          <select id="filtroRemito"><option value="pend">Sin facturar</option><option value="fact">Facturados</option><option value="anul">Anulados</option><option value="">Todos</option></select>
+          <button class="primary" id="btnNuevoRemito">+ Remito directo</button>
+        </div>
+        <div class="tabla-wrap">
+          <table>
+            <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Entrega</th><th>Presupuesto</th><th class="num">Total</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="tbRemitos"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -477,6 +522,8 @@
           <div><label>Inicio de actividades</label><input type="date" name="inicio_actividades"></div>
           <div><label>Punto de venta</label><input type="number" min="1" step="1" name="punto_venta"></div>
           <div></div>
+          <div><label>Solapa de trabajo</label><select name="usa_presupuestos"><option value="0">Órdenes de servicio (servicio técnico)</option><option value="1">Presupuestos y remitos (comercio)</option></select></div>
+          <div class="solo-presup-form"><label>Validez de los presupuestos (días)</label><input type="number" min="1" max="365" step="1" name="validez_presupuesto"></div>
           <div class="solo-mono"><label>Categoría de Monotributo</label><input name="categoria_monotributo" placeholder="Ej. D"></div>
           <div class="solo-mono"><label>Tope anual de facturación de la categoría ($)</label><input type="number" step="0.01" min="0" name="tope_anual" placeholder="Lo informa ARCA / tu contador"></div>
           <div><label>Domicilio</label><input name="domicilio"></div>
@@ -984,8 +1031,8 @@
 <!-- ============ DIÁLOGO TRAER PENDIENTES A LA VENTA ============ -->
 <dialog id="dlgTraer">
   <form id="frmTraer">
-    <h2>Órdenes y abonos pendientes</h2>
-    <p class="muted" style="margin-top:-8px">Se suman a esta venta para cobrarlos y facturarlos juntos. Los repuestos de las órdenes ya descontaron stock: no se vuelven a descontar.</p>
+    <h2 id="tituloTraer">Órdenes y abonos pendientes</h2>
+    <p class="muted" style="margin-top:-8px" id="ayudaTraer">Se suman a esta venta para cobrarlos y facturarlos juntos. Los repuestos de las órdenes ya descontaron stock: no se vuelven a descontar.</p>
     <div class="lista-check" id="listaTraer"></div>
     <div class="botones">
       <button type="button" data-cerrar>Cancelar</button>
@@ -1094,6 +1141,75 @@
 <datalist id="dlRubros"></datalist>
 
 <div id="toast"></div>
+
+<!-- ============ DIÁLOGO PRESUPUESTO / REMITO (mismo editor) ============ -->
+<dialog id="dlgPresupuesto" class="ancho">
+  <form id="frmPresupuesto">
+    <h2 id="tituloPresupuesto">Nuevo presupuesto</h2>
+    <input type="hidden" name="id">
+    <div class="aviso-bloqueo hidden" id="presAviso" style="margin-bottom:12px"></div>
+    <div class="grid">
+      <div class="full"><label id="presLblCliente">Cliente</label><select name="cliente_id"></select></div>
+      <div class="full">
+        <label>Artículos</label>
+        <table class="mini">
+          <thead><tr><th>Artículo / descripción</th><th style="width:90px">Cant.</th><th class="num" style="width:130px">P. unitario</th><th class="num">Subtotal</th><th></th></tr></thead>
+          <tbody id="tbPresItems"></tbody>
+        </table>
+        <div class="fila-rep" id="presAgregar">
+          <input id="presArticulo" list="dlArticulos" placeholder="Buscar artículo o escanear código de barras">
+          <input id="presCantidad" type="number" min="1" step="1" value="1" title="Cantidad">
+          <input id="presPrecio" type="number" min="0" step="0.01" placeholder="Precio unit.">
+          <button type="button" id="btnPresAgregar">Agregar</button>
+        </div>
+        <div class="ayuda" id="presAyuda">La descripción de cada renglón se puede cambiar: así sale en el presupuesto, el remito y la venta.</div>
+      </div>
+      <div><label>Lista de precios</label><select name="lista"><option value="1">Lista 1 · Público</option><option value="2">Lista 2 · Gremio</option></select></div>
+      <div id="presValidezBox"><label>Válido hasta</label><input type="date" name="valido_hasta"></div>
+      <div id="presEntregaBox" class="hidden"><label>Entregar en / retira</label><input name="entrega" placeholder="Dirección de entrega o quién retira"></div>
+      <div class="full"><label>Notas (salen impresas)</label><input name="notas"></div>
+      <div class="full">
+        <div class="totales">
+          <div class="grande"><span>Total</span><span id="presTotal">$ 0,00</span></div>
+          <div id="presCobradoBox" class="hidden"><span>Cobrado</span><span id="presCobrado"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="botones">
+      <button type="button" class="danger izq hidden" id="btnAnularPres">Anular</button>
+      <button type="button" class="hidden" id="btnImprimirPres">Imprimir / PDF</button>
+      <button type="button" data-cerrar>Cerrar</button>
+      <button type="button" class="ok hidden" id="btnConfirmarPres">Confirmar → Remito</button>
+      <button type="submit" class="primary" id="btnGuardarPres">Guardar presupuesto</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ DIÁLOGO CONFIRMAR PRESUPUESTO ============ -->
+<dialog id="dlgConfirmarPres">
+  <form id="frmConfirmarPres">
+    <h2 id="tituloConfirmarPres">Confirmar presupuesto</h2>
+    <div class="aviso" style="margin-bottom:12px">Tildá lo que el cliente acepta. Con eso se genera el <b>remito</b>: sale el stock y se suma a la cuenta corriente del cliente. Lo que no tildes se descarta y el presupuesto se cierra.</div>
+    <div class="muted" id="confPresCliente" style="margin-bottom:6px"></div>
+    <table class="mini">
+      <thead><tr><th><input type="checkbox" id="confTodos" checked title="Todos"></th><th>Artículo / descripción</th><th>Cant.</th><th class="num">P. unitario</th><th class="num">Subtotal</th><th>Stock</th></tr></thead>
+      <tbody id="tbConfItems"></tbody>
+    </table>
+    <div class="totales">
+      <div><span>Presupuestado</span><span id="confPresupuestado"></span></div>
+      <div class="grande"><span>Va al remito</span><span id="confAlRemito"></span></div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div><label>Entregar en / retira</label><input name="entrega" placeholder="Dirección de entrega o quién retira"></div>
+      <div><label>Notas del remito</label><input name="notas"></div>
+    </div>
+    <div class="aviso fuerte hidden" id="confParcial" style="margin-top:12px"></div>
+    <div class="botones">
+      <button type="button" data-cerrar>Cancelar</button>
+      <button type="submit" class="primary">Generar remito</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
 // =====================================================================
@@ -1256,6 +1372,7 @@ function aplicarNegocio() {
   $('#tituloApp').textContent = nombre ? `${nombre} · Gestión` : 'Gestión';
   try { if (nombre) localStorage.setItem('ns-nombre-negocio', nombre); } catch { /* sin almacenamiento */ }
   aplicarCondicionFiscal();
+  aplicarModoTrabajo();
 }
 const esRI = () => negocio.condicion_iva === 'Responsable Inscripto';
 const facturasPermitidas = () => esRI() ? ['Factura A', 'Factura B'] : ['Factura C'];
@@ -1336,11 +1453,12 @@ sb.auth.onAuthStateChange(evento => {
 });
 
 // ======================= PESTAÑAS Y LISTAS FIJAS =======================
-const PESTANAS = ['ordenes', 'clientes', 'ventas', 'articulos', 'compras', 'proveedores', 'caja', 'cuentas', 'facturacion', 'reportes', 'usuarios', 'negocio'];
+const PESTANAS = ['ordenes', 'presupuestos', 'clientes', 'ventas', 'articulos', 'compras', 'proveedores', 'caja', 'cuentas', 'facturacion', 'reportes', 'usuarios', 'negocio'];
 function irA(tab) {
   $$('nav button').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
   PESTANAS.forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== tab));
   if (tab === 'caja') cargarCaja();
+  if (tab === 'presupuestos') cargarPresupuestos();
   if (tab === 'facturacion') cargarPendientes();
   if (tab === 'cuentas') cargarMovCuenta();
   if (tab === 'usuarios') cargarUsuarios();
@@ -1451,7 +1569,7 @@ async function cargarTodo() {
   if (!(await cargarPerfil())) return;
   await Promise.all([cargarProveedores(), cargarClientes(), cargarCaja(), cargarCuentas(), cargarNegocio()]);
   await cargarArticulos();   // después de proveedores (para mostrar el proveedor de cada artículo)
-  await Promise.all([cargarOrdenes(), cargarVentas(), cargarCompras(), cargarSaldos()]);
+  await Promise.all([cargarOrdenes(), cargarVentas(), cargarCompras(), cargarSaldos(), cargarPresupuestos()]);
   actualizarARendir();
   $('#periodoAbono').value = hoyISO().slice(0, 7);
 }
@@ -3150,10 +3268,13 @@ $('#frmVenta [name=condicion]').addEventListener('change', e => $('#ventaMedioBo
 
 // ---------- Traer órdenes y abonos pendientes del cliente ----------
 function pendientesParaVenta(clienteId) {
-  const usados = new Set(itemsVenta.map(i => i.orden_id ? `Orden-${i.orden_id}` : i.cargo_id ? `Cargo-${i.cargo_id}` : ''));
+  const usados = new Set(itemsVenta.map(i => i.orden_id ? `Orden-${i.orden_id}` : i.cargo_id ? `Cargo-${i.cargo_id}` : i.remito_id ? `Remito-${i.remito_id}` : ''));
   return Object.values(saldoDoc).filter(s => {
-    if (s.cliente_id !== clienteId || s.tipo === 'Venta' || s.comprobante_id) return false;
-    if (redondear(s.total - s.cobrado) <= 0 || usados.has(`${s.tipo}-${s.id}`)) return false;
+    if (s.cliente_id !== clienteId || s.tipo === 'Venta' || s.comprobante_id || usados.has(`${s.tipo}-${s.id}`)) return false;
+    // el remito se trae aunque ya esté cobrado: igual hay que facturarlo (o cerrarlo "sin comprobante fiscal")
+    if (s.tipo === 'Remito') return s.total > 0;
+    if (usaPresupuestos()) return false;
+    if (redondear(s.total - s.cobrado) <= 0) return false;
     return s.tipo === 'Cargo' || ordenes.find(o => o.id === s.id)?.estado === 'Entregado';
   }).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 }
@@ -3162,7 +3283,7 @@ function actualizarTraer() {
   const id = Number(f.cliente_id.value);
   const n = id && !f.id.value ? pendientesParaVenta(id).length : 0;
   $('#ventaTraerBox').classList.toggle('hidden', !n);
-  $('#btnTraerPendientes').textContent = `Traer órdenes / abonos pendientes del cliente (${n})`;
+  $('#btnTraerPendientes').textContent = usaPresupuestos() ? `Traer remitos pendientes del cliente (${n})` : `Traer órdenes / abonos pendientes del cliente (${n})`;
 }
 $('#btnTraerPendientes').addEventListener('click', () => {
   const lista = pendientesParaVenta(Number($('#frmVenta [name=cliente_id]').value));
@@ -3176,7 +3297,9 @@ $('#frmTraer').addEventListener('submit', e => {
   e.preventDefault();
   $$('#listaTraer input:checked').forEach(ch => {
     const s = saldoDoc[ch.value];
-    itemsVenta.push({ [s.tipo === 'Orden' ? 'orden_id' : 'cargo_id']: s.id, cantidad: 1, precio_unitario: s.total, cobrado: s.cobrado, etiqueta: s.detalle });
+    const clave = { Orden: 'orden_id', Cargo: 'cargo_id', Remito: 'remito_id' }[s.tipo];
+    itemsVenta.push({ [clave]: s.id, cantidad: 1, precio_unitario: s.total, cobrado: s.cobrado,
+      etiqueta: s.tipo === 'Remito' ? `${s.detalle} · se factura entero (${fecha(s.fecha)})` : s.detalle });
   });
   $('#dlgTraer').close();
   renderItemsVenta();
@@ -3198,9 +3321,9 @@ $('#frmVenta [name=cliente_id]').addEventListener('change', e => {
   f.lista.value = String(c?.lista_precios ?? 1);
   if (!c) { f.condicion.value = 'Contado'; $('#ventaMedioBox').classList.remove('hidden'); }
   // las órdenes / abonos traídos son del cliente anterior
-  if (itemsVenta.some(i => i.orden_id || i.cargo_id)) {
-    itemsVenta = itemsVenta.filter(i => i.articulo_id);
-    toast('Se quitaron las órdenes / abonos del cliente anterior.');
+  if (itemsVenta.some(i => i.orden_id || i.cargo_id || i.remito_id)) {
+    itemsVenta = itemsVenta.filter(i => i.articulo_id && !i.remito_id);
+    toast(usaPresupuestos() ? 'Se quitaron los remitos del cliente anterior.' : 'Se quitaron las órdenes / abonos del cliente anterior.');
   }
   aplicarListaVenta();
   actualizarTraer();
@@ -3259,7 +3382,7 @@ $('#frmVenta').addEventListener('submit', async e => {
   if (txt('nro_factura') && f.elements.tipo_comprobante.value === 'Sin comprobante fiscal') return toast('Elegí el tipo de factura para cargar el número.', true);
   const { data: nuevaId, error } = await sb.rpc('registrar_venta', {
     p_cliente_id: f.elements.cliente_id.value ? Number(f.elements.cliente_id.value) : null,
-    p_items: itemsVenta.map(i => i.orden_id ? { orden_id: i.orden_id } : i.cargo_id ? { cargo_id: i.cargo_id }
+    p_items: itemsVenta.map(i => i.orden_id ? { orden_id: i.orden_id } : i.cargo_id ? { cargo_id: i.cargo_id } : i.remito_id ? { remito_id: i.remito_id }
       : { articulo_id: i.articulo_id, cantidad: i.cantidad, precio_unitario: i.precio_unitario, descripcion: i.descripcion || null }),
     p_lista: listaDeVenta(),
     p_percepcion_pct: f.elements.percepcion_pct.value === '' ? null : Number(f.elements.percepcion_pct.value),
@@ -3273,7 +3396,7 @@ $('#frmVenta').addEventListener('submit', async e => {
   if (error) return toast(mensajeError(error, 'Error al registrar la venta'), true);
   $('#dlgVenta').close();
   toast(`Venta #${nuevaId} registrada` + (condicion === 'Contado' ? ` y cobrada con ${f.elements.medio.value}` : ' a cuenta corriente'));
-  await Promise.all([cargarVentas(), cargarOrdenes(), refrescarMovimientos()]);
+  await Promise.all([cargarVentas(), cargarOrdenes(), cargarPresupuestos(), refrescarMovimientos()]);
 });
 
 $('#btnAnularVenta').addEventListener('click', async () => {
@@ -3281,7 +3404,7 @@ $('#btnAnularVenta').addEventListener('click', async () => {
   const s = saldoDoc[`Venta-${v.id}`];
   const cobrado = s?.cobrado || 0;
   if (v.comprobante_id) return toast('La venta tiene comprobante AFIP registrado: primero quitalo en Facturación y emití la nota de crédito en ARCA.', true);
-  let msg = `¿Anular la venta #${v.id}? Los artículos vuelven al stock y las órdenes / abonos que traía vuelven a quedar pendientes.`;
+  let msg = `¿Anular la venta #${v.id}? Los artículos vuelven al stock y las órdenes / abonos / remitos que traía vuelven a quedar pendientes (la mercadería de un remito sigue entregada: no vuelve al stock).`;
   if (!confirm(msg)) return;
   const { error } = await sb.from('ventas').update({ estado: 'Anulada' }).eq('id', v.id);
   if (error) return toast(mensajeError(error, 'Error al anular'), true);
@@ -3297,7 +3420,7 @@ $('#btnAnularVenta').addEventListener('click', async () => {
   }
   $('#dlgVenta').close();
   toast(`Venta #${v.id} anulada`);
-  await Promise.all([cargarVentas(), cargarOrdenes(), refrescarMovimientos()]);
+  await Promise.all([cargarVentas(), cargarOrdenes(), cargarPresupuestos(), refrescarMovimientos()]);
 });
 
 $('#btnImprimirVenta').addEventListener('click', () => imprimirVenta(ventaAbierta.id));
@@ -3370,6 +3493,381 @@ window.imprimirVenta = async id => {
     else toast('No se encontró un artículo con ese código.', true);
   });
 });
+
+// ======================= PRESUPUESTOS Y REMITOS =======================
+// Solo se usan si en Negocio se eligió "Presupuestos y remitos" (en lugar de órdenes de servicio)
+let presupuestos = [], remitos = [];
+let docAbierto = null;          // { clase: 'presupuesto' | 'remito', ...registro } o null si es nuevo
+let itemsDoc = [];              // renglones del presupuesto / remito que se está editando
+const usaPresupuestos = () => !!negocio.usa_presupuestos;
+const nro = n => String(n).padStart(4, '0');
+const presVencido = p => p.estado === 'Pendiente' && p.valido_hasta && p.valido_hasta < hoyISO();
+const estadoPres = p => presVencido(p) ? 'Vencido' : p.estado;
+const estadoRemito = r => r.anulado ? 'Anulado' : r.venta_id ? 'Facturado' : 'Sin facturar';
+
+async function cargarPresupuestos() {
+  if (!usaPresupuestos() || !esStaff()) return;
+  const [p, r] = await Promise.all([
+    sb.from('presupuestos').select('*, clientes(nombre, razon_social, cuit, condicion_iva, direccion, telefono), presupuesto_items(count)').order('id', { ascending: false }).limit(1000),
+    sb.from('remitos').select('*, clientes(nombre, razon_social, cuit, condicion_iva, direccion, telefono)').order('id', { ascending: false }).limit(1000),
+  ]);
+  if (p.error || r.error) return toast(mensajeError(p.error || r.error, 'Error al cargar presupuestos'), true);
+  presupuestos = p.data; remitos = r.data;
+  renderPresupuestos(); renderRemitos();
+}
+
+let filtroPres = '';
+function renderPresupuestos() {
+  const cuenta = e => presupuestos.filter(p => estadoPres(p) === e).length;
+  $('#resumenPres').innerHTML = [['', 'Todos', presupuestos.filter(p => p.estado !== 'Anulado').length],
+    ...['Pendiente', 'Confirmado', 'Confirmado parcial', 'Vencido', 'Anulado'].map(e => [e, `<span class="badge ${claseEstado(e)}">${e}</span>`, cuenta(e)])]
+    .map(([k, et, n]) => `<div class="tarj-estado${filtroPres === k ? ' activa' : ''}${n ? '' : ' cero'}" data-estado="${k}"><b>${n}</b>${et}</div>`).join('');
+  const q = $('#buscarPres').value.trim().toLowerCase();
+  const lista = presupuestos.filter(p => {
+    const e = estadoPres(p);
+    if (filtroPres ? e !== filtroPres : e === 'Anulado') return false;
+    return !q || [nro(p.id), p.id, p.clientes?.nombre, p.clientes?.razon_social, p.notas].some(x => String(x ?? '').toLowerCase().includes(q));
+  });
+  $('#tbPresupuestos').innerHTML = lista.length ? lista.map(p => {
+    const e = estadoPres(p);
+    return `<tr>
+      <td><b>${nro(p.id)}</b></td><td>${fecha(p.fecha)}</td><td>${esc(p.clientes?.nombre ?? 'Sin cliente')}</td>
+      <td>${p.presupuesto_items?.[0]?.count ?? ''}</td><td>${fecha(p.valido_hasta)}</td><td class="num">${dinero(p.total)}</td>
+      <td><span class="badge ${claseEstado(e)}">${e}</span></td>
+      <td>${p.remito_id ? `<a href="#" onclick="verRemito(${p.remito_id});return false">R ${nro(p.remito_id)}</a>` : '<span class="muted">—</span>'}</td>
+      <td class="acciones"><button class="sm" onclick="verPresupuesto(${p.id})">Ver</button> <button class="sm" onclick="imprimirPresupuesto(${p.id})">Imprimir</button>${p.estado === 'Pendiente' ? ` <button class="sm ok" onclick="confirmarPresupuesto(${p.id})">Confirmar</button>` : ''}${['Confirmado', 'Confirmado parcial', 'Anulado'].includes(p.estado) || presVencido(p) ? ` <button class="sm" onclick="copiarPresupuesto(${p.id})" title="Nuevo presupuesto con los mismos artículos">Copiar</button>` : ''}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="9" class="vacio">No hay presupuestos para mostrar</td></tr>`;
+}
+$('#resumenPres').addEventListener('click', e => { const t = e.target.closest('[data-estado]'); if (!t) return; filtroPres = t.dataset.estado; renderPresupuestos(); });
+$('#buscarPres').addEventListener('input', renderPresupuestos);
+
+function renderRemitos() {
+  const q = $('#buscarRemito').value.trim().toLowerCase(), f = $('#filtroRemito').value;
+  const lista = remitos.filter(r => {
+    if (f === 'pend' && (r.anulado || r.venta_id)) return false;
+    if (f === 'fact' && !r.venta_id) return false;
+    if (f === 'anul' && !r.anulado) return false;
+    return !q || [nro(r.id), r.id, r.clientes?.nombre, r.clientes?.razon_social, r.entrega].some(x => String(x ?? '').toLowerCase().includes(q));
+  });
+  $('#tbRemitos').innerHTML = lista.length ? lista.map(r => {
+    const e = estadoRemito(r);
+    return `<tr class="${r.anulado ? 'anulado' : ''}">
+      <td><b>${nro(r.id)}</b></td><td>${fecha(r.fecha)}</td><td>${esc(r.clientes?.nombre ?? '')}</td><td>${esc(r.entrega ?? '')}</td>
+      <td>${r.presupuesto_id ? `<a href="#" onclick="verPresupuesto(${r.presupuesto_id});return false">P ${nro(r.presupuesto_id)}</a>` : '<span class="muted">Directo</span>'}</td>
+      <td class="num">${dinero(r.total)}</td>
+      <td><span class="badge ${e === 'Anulado' ? 'rojo' : e === 'Facturado' ? 'verde' : 'amarillo'}">${e === 'Facturado' ? 'En venta #' + r.venta_id : e}</span> ${!r.anulado && !r.venta_id ? estadoCobro('Remito', r.id, true) : ''}</td>
+      <td class="acciones"><button class="sm" onclick="verRemito(${r.id})">Ver</button> <button class="sm" onclick="imprimirRemito(${r.id})">Imprimir</button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" class="vacio">No hay remitos para mostrar</td></tr>`;
+}
+$('#buscarRemito').addEventListener('input', renderRemitos);
+$('#filtroRemito').addEventListener('change', renderRemitos);
+$('#presPestanas').addEventListener('click', e => {
+  const b = e.target.closest('button[data-vista]'); if (!b) return;
+  $$('#presPestanas button').forEach(x => x.classList.toggle('activa', x === b));
+  $('#vistaPresupuestos').classList.toggle('hidden', b.dataset.vista !== 'presupuestos');
+  $('#vistaRemitos').classList.toggle('hidden', b.dataset.vista !== 'remitos');
+});
+
+// ---------- Editor (presupuesto o remito directo) ----------
+const listaDeDoc = () => Number($('#frmPresupuesto [name=lista]').value || 1);
+const docEditable = () => !docAbierto?.id || (docAbierto.clase === 'presupuesto' && docAbierto.estado === 'Pendiente');
+
+function abrirDoc(clase, d = null, items = []) {
+  docAbierto = d ? { ...d, clase } : { clase };
+  const f = $('#frmPresupuesto'), esPres = clase === 'presupuesto', editable = docEditable();
+  f.reset();
+  f.elements.id.value = d?.id ?? '';
+  llenarSelectClientes(f.elements.cliente_id, d?.cliente_id ?? '', false);
+  if (esPres) f.elements.cliente_id.options[0].textContent = '— Sin cliente (se elige al confirmar) —';
+  $('#presLblCliente').textContent = esPres ? 'Cliente' : 'Cliente * (el remito va a su cuenta corriente)';
+  f.elements.lista.value = String(d?.lista_precios ?? 1);
+  f.elements.notas.value = d?.notas ?? '';
+  f.elements.entrega.value = d?.entrega ?? '';
+  const dias = Number(negocio.validez_presupuesto || 7);
+  const hasta = new Date(); hasta.setDate(hasta.getDate() + dias);
+  f.elements.valido_hasta.value = d?.valido_hasta ?? hasta.toISOString().slice(0, 10);
+  $('#presValidezBox').classList.toggle('hidden', !esPres);
+  $('#presEntregaBox').classList.toggle('hidden', esPres);
+  ['cliente_id', 'lista', 'notas', 'valido_hasta', 'entrega'].forEach(k => f.elements[k].disabled = !editable);
+  $('#presAgregar').classList.toggle('hidden', !editable);
+  $('#presAyuda').classList.toggle('hidden', !editable);
+  const titulo = esPres ? (d ? `Presupuesto ${nro(d.id)}` : 'Nuevo presupuesto') : (d ? `Remito ${nro(d.id)}` : 'Nuevo remito directo');
+  $('#tituloPresupuesto').textContent = titulo + (d ? ` · ${esPres ? estadoPres(d) : estadoRemito(d)}` : '');
+  // aviso del estado
+  let aviso = '';
+  if (esPres && d?.remito_id) aviso = `Confirmado: generó el remito ${nro(d.remito_id)}.` + (d.estado === 'Confirmado parcial' ? ' Los renglones tachados no se confirmaron.' : '');
+  if (esPres && d && presVencido(d)) aviso = `Venció el ${fecha(d.valido_hasta)}. Podés cambiar la fecha y los precios antes de confirmarlo.`;
+  if (!esPres && d?.venta_id) aviso = `Facturado en la venta #${d.venta_id}.`;
+  if (!esPres && d?.anulado) aviso = 'Remito anulado: el stock volvió y salió de la cuenta corriente.';
+  if (!esPres && !d) aviso = 'El remito descuenta el stock y suma a la cuenta corriente del cliente. Después se factura desde Ventas con "Traer remitos pendientes".';
+  $('#presAviso').innerHTML = esc(aviso);
+  $('#presAviso').classList.toggle('hidden', !aviso);
+  $('#btnGuardarPres').textContent = esPres ? 'Guardar presupuesto' : 'Generar remito';
+  $('#btnGuardarPres').classList.toggle('hidden', !editable);
+  $('#btnImprimirPres').classList.toggle('hidden', !d);
+  $('#btnConfirmarPres').classList.toggle('hidden', !(esPres && d?.estado === 'Pendiente'));
+  const anulable = esPres ? d?.estado === 'Pendiente' : d && !d.anulado && !d.venta_id && puedeAnular();
+  $('#btnAnularPres').classList.toggle('hidden', !anulable);
+  const s = !esPres && d && !d.anulado && !d.venta_id ? saldoDoc[`Remito-${d.id}`] : null;
+  $('#presCobradoBox').classList.toggle('hidden', !s?.cobrado);
+  $('#presCobrado').textContent = dinero(s?.cobrado);
+  itemsDoc = items.map(i => ({ ...i, nombre: articulos.find(a => a.id === i.articulo_id)?.descripcion ?? '' }));
+  renderItemsDoc();
+  $('#dlgPresupuesto').showModal();
+}
+
+function renderItemsDoc() {
+  const editable = docEditable(), conf = docAbierto?.clase === 'presupuesto' && docAbierto?.remito_id;
+  $('#tbPresItems').innerHTML = itemsDoc.length ? itemsDoc.map((i, n) => {
+    const a = articulos.find(x => x.id === i.articulo_id);
+    const cod = a ? `${a.codigo || '#' + a.id}${a.tipo === 'Producto' ? ' · stock ' + a.stock : ''}` : '';
+    const tachado = conf && !i.confirmado ? ' style="text-decoration:line-through;color:var(--muted)"' : '';
+    return editable ? `<tr>
+        <td><input class="desc" value="${esc(i.descripcion || i.nombre)}" oninput="cambiarItemDoc(${n}, 'descripcion', this.value)"><div class="muted">${esc(cod)}</div></td>
+        <td><input type="number" min="1" step="1" value="${i.cantidad}" oninput="cambiarItemDoc(${n}, 'cantidad', this.value)"></td>
+        <td><input type="number" min="0" step="0.01" value="${i.precio_unitario}" oninput="cambiarItemDoc(${n}, 'precio_unitario', this.value)" style="text-align:right"></td>
+        <td class="num" id="subDoc${n}">${dinero(i.cantidad * i.precio_unitario)}</td>
+        <td class="acciones"><button type="button" class="sm danger" onclick="quitarItemDoc(${n})">✕</button></td></tr>`
+      : `<tr${tachado}><td>${esc(i.descripcion || i.nombre)}<div class="muted">${esc(a?.codigo || '')}</div></td><td>${i.cantidad}</td><td class="num">${dinero(i.precio_unitario)}</td><td class="num">${dinero(i.cantidad * i.precio_unitario)}</td><td></td></tr>`;
+  }).join('') : `<tr><td colspan="5" class="vacio" style="padding:12px">Agregá artículos</td></tr>`;
+  actualizarTotalDoc();
+}
+function actualizarTotalDoc() {
+  $('#presTotal').textContent = dinero(itemsDoc.reduce((t, i) => t + Number(i.cantidad) * Number(i.precio_unitario), 0));
+}
+window.cambiarItemDoc = (n, k, v) => {
+  const i = itemsDoc[n];
+  if (k === 'descripcion') i.descripcion = v;
+  else i[k] = k === 'cantidad' ? parseInt(v, 10) || 0 : Number(v) || 0;
+  if (k !== 'descripcion') $('#subDoc' + n).textContent = dinero(i.cantidad * i.precio_unitario);
+  actualizarTotalDoc();
+};
+window.quitarItemDoc = n => { itemsDoc.splice(n, 1); renderItemsDoc(); };
+
+$('#presArticulo').addEventListener('input', () => {
+  const a = buscarArticulo($('#presArticulo').value);
+  if (!a) return;
+  $('#presArticulo').value = etiquetaArticulo(a);
+  $('#presPrecio').value = precioLista(a, listaDeDoc()) ?? '';
+  $('#presAyuda').textContent = a.tipo === 'Servicio' ? 'Servicio: podés cambiar la descripción y el precio.' : `Stock disponible: ${a.stock}`;
+});
+$('#presArticulo').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  $('#presArticulo').dispatchEvent(new Event('input'));
+  if (buscarArticulo($('#presArticulo').value)) $('#btnPresAgregar').click();
+  else toast('No se encontró un artículo con ese código.', true);
+});
+$('#btnPresAgregar').addEventListener('click', () => {
+  const a = buscarArticulo($('#presArticulo').value);
+  const cantidad = parseInt($('#presCantidad').value, 10);
+  if (!a) return toast('Elegí un artículo de la lista.', true);
+  if (!(cantidad > 0)) return toast('La cantidad tiene que ser 1 o más.', true);
+  const precio = $('#presPrecio').value === '' ? Number(precioLista(a, listaDeDoc()) || 0) : Number($('#presPrecio').value);
+  if (docAbierto.clase === 'remito' && a.tipo !== 'Servicio') {
+    const ya = itemsDoc.filter(i => i.articulo_id === a.id).reduce((t, i) => t + i.cantidad, 0);
+    if (cantidad + ya > a.stock) return toast(`No hay stock suficiente: quedan ${a.stock}.`, true);
+  }
+  itemsDoc.push({ articulo_id: a.id, cantidad, precio_unitario: precio, descripcion: a.descripcion, nombre: a.descripcion });
+  $('#presArticulo').value = ''; $('#presCantidad').value = 1; $('#presPrecio').value = '';
+  $('#presAyuda').textContent = 'La descripción de cada renglón se puede cambiar: así sale en el presupuesto, el remito y la venta.';
+  renderItemsDoc();
+  $('#presArticulo').focus();
+});
+// Cambiar la lista de precios: se recalculan los precios de los renglones (solo mientras se edita)
+$('#frmPresupuesto [name=lista]').addEventListener('change', () => {
+  itemsDoc.forEach(i => { const a = articulos.find(x => x.id === i.articulo_id); if (a && precioLista(a, listaDeDoc()) != null) i.precio_unitario = Number(precioLista(a, listaDeDoc())); });
+  renderItemsDoc();
+});
+$('#frmPresupuesto [name=cliente_id]').addEventListener('change', e => {
+  const c = clientes.find(x => String(x.id) === e.target.value);
+  if (c && String(c.lista_precios || 1) !== $('#frmPresupuesto [name=lista]').value) {
+    $('#frmPresupuesto [name=lista]').value = String(c.lista_precios || 1);
+    $('#frmPresupuesto [name=lista]').dispatchEvent(new Event('change'));
+  }
+});
+
+const itemsParaGuardar = () => itemsDoc.map(i => ({ articulo_id: i.articulo_id, cantidad: i.cantidad, precio_unitario: i.precio_unitario,
+  descripcion: (i.descripcion || '').trim() && i.descripcion.trim() !== i.nombre ? i.descripcion.trim() : null }));
+
+$('#frmPresupuesto').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = $('#frmPresupuesto').elements;
+  if (!itemsDoc.length) return toast('Agregá al menos un artículo.', true);
+  if (itemsDoc.some(i => !(i.cantidad > 0))) return toast('Revisá las cantidades: tienen que ser 1 o más.', true);
+  const cliente = f.cliente_id.value ? Number(f.cliente_id.value) : null;
+  if (docAbierto.clase === 'presupuesto') {
+    const { data: id, error } = await sb.rpc('guardar_presupuesto', {
+      p_id: docAbierto.id ?? null, p_cliente_id: cliente, p_lista: listaDeDoc(),
+      p_valido_hasta: f.valido_hasta.value || null, p_notas: f.notas.value, p_items: itemsParaGuardar() });
+    if (error) return toast(mensajeError(error, 'Error al guardar el presupuesto'), true);
+    $('#dlgPresupuesto').close();
+    toast(`Presupuesto ${nro(id)} guardado`);
+    await cargarPresupuestos();
+  } else {
+    if (!cliente) return toast('El remito va a la cuenta corriente: elegí un cliente.', true);
+    const { data: id, error } = await sb.rpc('crear_remito', {
+      p_cliente_id: cliente, p_lista: listaDeDoc(), p_items: itemsParaGuardar(), p_entrega: f.entrega.value, p_notas: f.notas.value });
+    if (error) return toast(mensajeError(error, 'Error al generar el remito'), true);
+    $('#dlgPresupuesto').close();
+    toast(`Remito ${nro(id)} generado`);
+    await Promise.all([cargarPresupuestos(), refrescarMovimientos()]);
+    if (confirm(`Remito ${nro(id)} generado. ¿Imprimirlo para que lo firme quien recibe?`)) imprimirRemito(id);
+  }
+});
+
+async function itemsDe(clase, id) {
+  const t = clase === 'presupuesto' ? 'presupuesto_items' : 'remito_items';
+  const { data, error } = await sb.from(t).select('*').eq(clase === 'presupuesto' ? 'presupuesto_id' : 'remito_id', id).order('id');
+  if (error) { toast(mensajeError(error, 'Error al cargar los renglones'), true); return null; }
+  return data;
+}
+window.verPresupuesto = async id => {
+  const p = presupuestos.find(x => x.id === id); if (!p) return;
+  const items = await itemsDe('presupuesto', id); if (items) abrirDoc('presupuesto', p, items);
+};
+window.verRemito = async id => {
+  const r = remitos.find(x => x.id === id); if (!r) return;
+  const items = await itemsDe('remito', id); if (items) abrirDoc('remito', r, items);
+};
+window.copiarPresupuesto = async id => {
+  const p = presupuestos.find(x => x.id === id); if (!p) return;
+  const items = await itemsDe('presupuesto', id); if (!items) return;
+  // precios actuales de la lista (el presupuesto viejo pudo quedar desactualizado)
+  abrirDoc('presupuesto', null, items.map(i => {
+    const a = articulos.find(x => x.id === i.articulo_id);
+    return { articulo_id: i.articulo_id, cantidad: i.cantidad, descripcion: i.descripcion,
+             precio_unitario: a && precioLista(a, p.lista_precios) != null ? Number(precioLista(a, p.lista_precios)) : i.precio_unitario };
+  }));
+  const f = $('#frmPresupuesto').elements;
+  f.cliente_id.value = p.cliente_id ?? ''; f.lista.value = String(p.lista_precios || 1); f.notas.value = p.notas ?? '';
+};
+$('#btnNuevoPres').addEventListener('click', () => abrirDoc('presupuesto'));
+$('#btnNuevoRemito').addEventListener('click', () => abrirDoc('remito'));
+$('#btnImprimirPres').addEventListener('click', () => docAbierto.clase === 'presupuesto' ? imprimirPresupuesto(docAbierto.id) : imprimirRemito(docAbierto.id));
+$('#btnConfirmarPres').addEventListener('click', () => { const id = docAbierto.id; $('#dlgPresupuesto').close(); confirmarPresupuesto(id); });
+$('#btnAnularPres').addEventListener('click', async () => {
+  const d = docAbierto;
+  if (d.clase === 'presupuesto') {
+    if (!confirm(`¿Anular el presupuesto ${nro(d.id)}?`)) return;
+    const { error } = await sb.rpc('anular_presupuesto', { p_id: d.id });
+    if (error) return toast(mensajeError(error, 'No se pudo anular'), true);
+    toast(`Presupuesto ${nro(d.id)} anulado`);
+  } else {
+    if (!confirm(`¿Anular el remito ${nro(d.id)}?\n\nLos artículos vuelven al stock y sale de la cuenta corriente del cliente.` +
+      (d.presupuesto_id ? `\nEl presupuesto ${nro(d.presupuesto_id)} vuelve a quedar pendiente.` : '') +
+      '\nSi tenía cobros, quedan a cuenta del cliente.')) return;
+    const { error } = await sb.rpc('anular_remito', { p_id: d.id });
+    if (error) return toast(mensajeError(error, 'No se pudo anular'), true);
+    toast(`Remito ${nro(d.id)} anulado`);
+  }
+  $('#dlgPresupuesto').close();
+  await Promise.all([cargarPresupuestos(), refrescarMovimientos()]);
+});
+
+// ---------- Confirmar presupuesto -> remito ----------
+let presAConfirmar = null, itemsConfirmar = [];
+window.confirmarPresupuesto = async id => {
+  const p = presupuestos.find(x => x.id === id); if (!p) return;
+  if (!p.cliente_id) {
+    toast('Para confirmar, el presupuesto tiene que tener un cliente: elegilo y guardá.', true);
+    return verPresupuesto(id);
+  }
+  const items = await itemsDe('presupuesto', id); if (!items) return;
+  presAConfirmar = p; itemsConfirmar = items;
+  const f = $('#frmConfirmarPres');
+  f.reset();
+  $('#tituloConfirmarPres').textContent = `Confirmar presupuesto ${nro(p.id)}`;
+  $('#confPresCliente').textContent = `${p.clientes?.nombre ?? ''} · Lista ${p.lista_precios} · precios del presupuesto` + (presVencido(p) ? ` · vencido el ${fecha(p.valido_hasta)}` : '');
+  $('#tbConfItems').innerHTML = items.map(i => {
+    const a = articulos.find(x => x.id === i.articulo_id);
+    const falta = a && a.tipo === 'Producto' && a.stock < i.cantidad;
+    return `<tr><td><input type="checkbox" value="${i.id}" ${falta ? '' : 'checked'}></td><td>${esc(i.descripcion || a?.descripcion || '')}</td><td>${i.cantidad}</td>
+      <td class="num">${dinero(i.precio_unitario)}</td><td class="num">${dinero(i.cantidad * i.precio_unitario)}</td>
+      <td>${a?.tipo === 'Producto' ? (falta ? `<span class="badge rojo">quedan ${a.stock}</span>` : a.stock) : '—'}</td></tr>`;
+  }).join('');
+  actualizarConfirmar();
+  $('#dlgConfirmarPres').showModal();
+};
+function actualizarConfirmar() {
+  const marcados = new Set($$('#tbConfItems input:checked').map(c => Number(c.value)));
+  $$('#tbConfItems tr').forEach(tr => tr.style.cssText = tr.querySelector('input').checked ? '' : 'text-decoration:line-through;color:var(--muted)');
+  const tot = itemsConfirmar.reduce((t, i) => t + i.cantidad * i.precio_unitario, 0);
+  const sel = itemsConfirmar.filter(i => marcados.has(i.id)).reduce((t, i) => t + i.cantidad * i.precio_unitario, 0);
+  $('#confPresupuestado').textContent = dinero(tot);
+  $('#confAlRemito').textContent = dinero(sel);
+  $('#confTodos').checked = marcados.size === itemsConfirmar.length;
+  const parcial = marcados.size > 0 && marcados.size < itemsConfirmar.length;
+  $('#confParcial').classList.toggle('hidden', !parcial);
+  $('#confParcial').innerHTML = `Confirmación parcial: ${marcados.size} de ${itemsConfirmar.length} renglones. El presupuesto queda como <b>Confirmado parcial</b> y lo no tildado se descarta.`;
+}
+$('#tbConfItems').addEventListener('change', actualizarConfirmar);
+$('#confTodos').addEventListener('change', e => { $$('#tbConfItems input').forEach(c => c.checked = e.target.checked); actualizarConfirmar(); });
+$('#frmConfirmarPres').addEventListener('submit', async e => {
+  e.preventDefault();
+  const ids = $$('#tbConfItems input:checked').map(c => Number(c.value));
+  if (!ids.length) return toast('Tildá al menos un renglón.', true);
+  const f = $('#frmConfirmarPres').elements;
+  const { data: remitoId, error } = await sb.rpc('confirmar_presupuesto', { p_id: presAConfirmar.id, p_items: ids, p_entrega: f.entrega.value, p_notas: f.notas.value });
+  if (error) return toast(mensajeError(error, 'No se pudo confirmar'), true);
+  $('#dlgConfirmarPres').close();
+  toast(`Remito ${nro(remitoId)} generado`);
+  await Promise.all([cargarPresupuestos(), refrescarMovimientos()]);
+  if (confirm(`Remito ${nro(remitoId)} generado. ¿Imprimirlo para que lo firme quien recibe?`)) imprimirRemito(remitoId);
+});
+
+// ---------- Impresiones ----------
+function datosClienteImp(c) {
+  c = c || {};
+  return `<table>${filaImp(c.razon_social ? 'Razón social' : 'Cliente', nombreFiscal(c) || '—')}${c.razon_social ? filaImp('Nombre de fantasía', c.nombre) : ''}${filaImp('CUIT', c.cuit)}${filaImp('Condición IVA', c.condicion_iva)}${filaImp('Dirección', c.direccion)}${filaImp('Teléfono', c.telefono)}`;
+}
+const filasItemsImp = (items, conPrecios = true) => items.map(i => {
+  const a = articulos.find(x => x.id === i.articulo_id);
+  const desc = i.descripcion || a?.descripcion || '';
+  return `<tr><td>${esc(a?.codigo || '')}</td><td>${esc(desc)}</td><td class="r">${i.cantidad}</td>${conPrecios ? `<td class="r">${dinero(i.precio_unitario)}</td><td class="r">${dinero(i.cantidad * i.precio_unitario)}</td>` : ''}</tr>`;
+}).join('');
+window.imprimirPresupuesto = async id => {
+  const p = presupuestos.find(x => x.id === id); if (!p) return;
+  const w = abrirImpresion(); if (!w) return;
+  const items = await itemsDe('presupuesto', id) || [];
+  escribirImpresion(w, `Presupuesto ${nro(id)}`, `PRESUPUESTO<br>N° ${nro(id)}<div style="font-size:13px;font-weight:normal">${fecha(p.fecha)}</div>`,
+    `${p.estado === 'Anulado' ? '<div class="marca">PRESUPUESTO ANULADO</div>' : ''}
+    ${datosClienteImp(p.clientes)}${filaImp('Válido hasta', fecha(p.valido_hasta))}${filaImp('Lista de precios', p.lista_precios === 2 ? 'Gremio' : 'Público')}${filaImp('Notas', p.notas)}</table>
+    <h3>Detalle</h3>
+    <table class="items"><tr><th>Código</th><th>Descripción</th><th class="r">Cant.</th><th class="r">P. unitario</th><th class="r">Subtotal</th></tr>${filasItemsImp(items)}</table>
+    <table class="tot"><tr><td>Total</td><td>${dinero(p.total)}</td></tr></table>
+    <div class="legal">Precios finales con IVA incluido. Presupuesto válido hasta el ${fecha(p.valido_hasta)}, sujeto a disponibilidad de stock.</div>
+    <div class="aviso">Documento no válido como factura.</div>`);
+};
+window.imprimirRemito = async id => {
+  const r = remitos.find(x => x.id === id); if (!r) return;
+  const w = abrirImpresion(); if (!w) return;
+  const items = await itemsDe('remito', id) || [];
+  escribirImpresion(w, `Remito ${nro(id)}`, `REMITO<br>N° ${nro(id)}<div style="font-size:13px;font-weight:normal">${fecha(r.fecha)}</div>`,
+    `${r.anulado ? '<div class="marca">REMITO ANULADO</div>' : ''}
+    ${datosClienteImp(r.clientes)}${filaImp('Entregar en / retira', r.entrega)}${r.presupuesto_id ? filaImp('Presupuesto', 'N° ' + nro(r.presupuesto_id)) : ''}${filaImp('Notas', r.notas)}</table>
+    <h3>Mercadería entregada</h3>
+    <table class="items"><tr><th>Código</th><th>Descripción</th><th class="r">Cant.</th><th class="r">P. unitario</th><th class="r">Subtotal</th></tr>${filasItemsImp(items)}</table>
+    <table class="tot"><tr><td>Total</td><td>${dinero(r.total)}</td></tr></table>
+    <div class="firmas"><div>Firma y aclaración de quien recibe</div><div>DNI · Fecha</div></div>
+    <div class="aviso">Remito interno. Documento no válido como factura.</div>`);
+};
+
+// ---------- Modo del negocio: Órdenes de servicio o Presupuestos ----------
+function aplicarModoTrabajo() {
+  const modo = usaPresupuestos();
+  document.body.classList.toggle('modo-presupuestos', modo);
+  const activa = $('nav button.active')?.dataset.tab;
+  if (modo && activa === 'ordenes') irA('presupuestos');
+  if (!modo && activa === 'presupuestos') irA('ordenes');
+  $('#tituloTraer').textContent = modo ? 'Remitos pendientes de facturar' : 'Órdenes y abonos pendientes';
+  $('#ayudaTraer').textContent = modo
+    ? 'Se suman a esta venta para facturarlos. Cada remito se factura entero; su mercadería ya descontó stock y no se vuelve a descontar.'
+    : 'Se suman a esta venta para cobrarlos y facturarlos juntos. Los repuestos de las órdenes ya descontaron stock: no se vuelven a descontar.';
+  if (typeof actualizarTraer === 'function') actualizarTraer();
+}
 
 // ======================= COMPRAS =======================
 let compraAbierta = null;
@@ -4071,6 +4569,7 @@ window.quitarComprobante = async id => {
 // Documentos que puede cubrir: los pendientes de facturar del cliente (y, si se tilda, también los "sin comprobante")
 function docsFacturables(clienteId, incluirSin = false) {
   return Object.values(saldoDoc).filter(s => (s.cliente_id ?? null) === (clienteId ?? null) && !s.comprobante_id && s.total > 0
+    && s.tipo !== 'Remito'   // los remitos se facturan desde Ventas (Traer remitos pendientes)
     && (s.tipo !== 'Orden' || ordenes.find(o => o.id === s.id)?.estado === 'Entregado')
     && (incluirSin || s.tipo_comprobante !== 'Sin comprobante fiscal'))
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -4233,6 +4732,9 @@ async function abrirNegocio() {
   ['nombre_fantasia', 'razon_social', 'cuit', 'condicion_iva', 'iibb', 'inicio_actividades', 'punto_venta', 'domicilio',
    'localidad', 'telefono', 'whatsapp', 'email', 'web', 'pie_impresion', 'categoria_monotributo', 'tope_anual'].forEach(k => f[k].value = negocio[k] ?? '');
   mostrarCamposMono();
+  f.usa_presupuestos.value = negocio.usa_presupuestos ? '1' : '0';
+  f.validez_presupuesto.value = negocio.validez_presupuesto ?? 7;
+  mostrarValidez();
   if (!negocio.condicion_iva) f.condicion_iva.value = 'Monotributista';
   logoNuevo = undefined;
   $('#logoArchivo').value = '';
@@ -4264,6 +4766,8 @@ function mostrarCamposMono() {
   $$('#frmNegocio .solo-mono').forEach(x => x.classList.toggle('hidden', $('#frmNegocio [name=condicion_iva]').value !== 'Monotributista'));
 }
 $('#frmNegocio [name=condicion_iva]').addEventListener('change', mostrarCamposMono);
+function mostrarValidez() { $$('#frmNegocio .solo-presup-form').forEach(x => x.classList.toggle('hidden', $('#frmNegocio [name=usa_presupuestos]').value !== '1')); }
+$('#frmNegocio [name=usa_presupuestos]').addEventListener('change', mostrarValidez);
 $('#logoArchivo').addEventListener('change', async e => {
   const a = e.target.files[0];
   if (!a) return;
@@ -4283,11 +4787,14 @@ $('#frmNegocio').addEventListener('submit', async e => {
     domicilio: v('domicilio'), localidad: v('localidad'), telefono: v('telefono'), whatsapp: v('whatsapp'),
     email: v('email'), web: v('web'), pie_impresion: v('pie_impresion'), actualizado_en: new Date().toISOString(),
     categoria_monotributo: v('categoria_monotributo'), tope_anual: v('tope_anual') ? Number(v('tope_anual')) : null,
+    usa_presupuestos: f.get('usa_presupuestos') === '1',
+    validez_presupuesto: Math.min(365, Math.max(1, parseInt(f.get('validez_presupuesto'), 10) || 7)),
   };
   if (logoNuevo !== undefined) datos.logo = logoNuevo;
   const { error } = await sb.from('negocio').update(datos).eq('id', 1);
   if (error) return toast(mensajeError(error, 'Error al guardar los datos del negocio'), true);
   await cargarNegocio();
+  cargarPresupuestos();
   logoNuevo = undefined;
   toast('Datos del negocio guardados');
 });
