@@ -165,6 +165,7 @@
   .e-Confirmado-parcial { background: #fff4d6; color: #8a6200; }
   .e-Vencido { background: #e6e8ec; color: #4a5263; }
   .e-Anulado { background: #fde2e2; color: #b42323; }
+  .texto-rojo { color: #b42323; font-weight: 600; }
   td input.desc { padding: 5px 8px; font-size: 14px; }
   #tbPresItems td input { padding: 5px 8px; font-size: 14px; }
 
@@ -645,6 +646,11 @@
       <div><label>Percepción (%)</label><input name="percepcion" type="number" step="0.01" min="0" max="100" placeholder="Ej. 3,5"></div>
       <div><label>Retención (%)</label><input name="retencion" type="number" step="0.01" min="0" max="100" placeholder="Ej. 2"></div>
       <div><label>Lista de precios</label><select name="lista_precios"><option value="1">Lista 1 · Público</option><option value="2">Lista 2 · Gremio</option></select></div>
+      <div></div>
+      <div class="full" style="border-top:1px solid var(--line);padding-top:10px"><b>Cuenta corriente</b> <small class="muted" id="ccSoloAdmin">(lo configura un administrador)</small></div>
+      <div style="align-self:end"><label class="check"><input type="checkbox" name="cta_cte_habilitada"> Habilitado para cuenta corriente</label></div>
+      <div><label>Límite de crédito ($)</label><input name="limite_credito" type="number" step="0.01" min="0" placeholder="Vacío = sin límite"></div>
+      <div><label>Plazo de pago (días)</label><input name="plazo_dias" type="number" step="1" min="0" max="365" placeholder="Ej. 30"></div>
       <div></div>
       <div style="align-self:end"><label class="check"><input type="checkbox" name="abonado"> Cliente abonado (soporte mensual)</label></div>
       <div><label>Abono mensual ($)</label><input name="abono_mensual" type="number" step="0.01" min="0"></div>
@@ -2075,8 +2081,11 @@ function renderClientes() {
   });
   $('#tbClientes').innerHTML = lista.length ? lista.map(c => {
     const saldo = saldoCliente[c.id] || 0;
-    const badge = saldo > 0.009 ? `<span class="badge rojo">Debe ${dinero(saldo)}</span>`
-                : saldo < -0.009 ? `<span class="badge verde">A favor ${dinero(-saldo)}</span>` : '<span class="muted">$ 0</span>';
+    const badge = (saldo > 0.009 ? `<span class="badge rojo">Debe ${dinero(saldo)}</span>`
+                : saldo < -0.009 ? `<span class="badge verde">A favor ${dinero(-saldo)}</span>` : '<span class="muted">$ 0</span>')
+      + (!c.cta_cte_habilitada ? '<br><small class="muted">Solo contado</small>'
+         : c.limite_credito != null ? `<br><small class="${saldo > Number(c.limite_credito) ? 'texto-rojo' : 'muted'}">Límite ${dinero(c.limite_credito)}${c.plazo_dias != null ? ' · ' + c.plazo_dias + ' días' : ''}</small>`
+         : c.plazo_dias != null ? `<br><small class="muted">${c.plazo_dias} días</small>` : '');
     return `
     <tr>
       <td><b>${esc(c.nombre)}</b>${c.razon_social && c.razon_social !== c.nombre ? `<br><small class="muted">${esc(c.razon_social)}</small>` : ''}${c.abonado ? ` <span class="badge azul">Abonado ${c.abono_mensual ? dinero(c.abono_mensual) : ''}</span>` : ''}</td>
@@ -2105,10 +2114,15 @@ function abrirCliente(c = null, desde = null) {
     ['nombre','razon_social','telefono','email','direccion','notas','cuit','condicion_iva','percepcion','retencion','lista_precios','abono_mensual','abono_comprobante']
       .forEach(k => f.elements[k].value = c[k] ?? '');
     f.elements.abonado.checked = !!c.abonado;
+    f.elements.cta_cte_habilitada.checked = !!c.cta_cte_habilitada;
+    f.elements.limite_credito.value = c.limite_credito ?? '';
+    f.elements.plazo_dias.value = c.plazo_dias ?? '';
   } else {
     f.elements.condicion_iva.value = 'Consumidor Final';
     f.elements.lista_precios.value = '1';
   }
+  ['cta_cte_habilitada', 'limite_credito', 'plazo_dias'].forEach(k => f.elements[k].disabled = !esAdmin());
+  $('#ccSoloAdmin').classList.toggle('hidden', esAdmin());
   $('#dlgCliente').showModal();
 }
 
@@ -2133,6 +2147,11 @@ $('#frmCliente').addEventListener('submit', async e => {
     lista_precios: Number(f.get('lista_precios') || 1), abonado, abono_mensual: num('abono_mensual'),
     abono_comprobante: v('abono_comprobante'),
   };
+  if (esAdmin()) {   // solo el Admin configura la cuenta corriente (la base también lo controla)
+    datos.cta_cte_habilitada = f.get('cta_cte_habilitada') === 'on';
+    datos.limite_credito = num('limite_credito');
+    datos.plazo_dias = v('plazo_dias') === null ? null : parseInt(v('plazo_dias'), 10);
+  }
   const id = f.get('id');
   const { data, error } = id
     ? await sb.from('clientes').update(datos).eq('id', id).select().single()
@@ -3358,6 +3377,21 @@ window.quitarItemVenta = n => { itemsVenta.splice(n, 1); renderItemsVenta(); act
 $('#btnNuevaVenta').addEventListener('click', () => abrirVenta());
 window.verVenta = id => abrirVenta(ventas.find(v => v.id === id));
 
+
+// ---------- Cuenta corriente del cliente: habilitado y límite de crédito ----------
+// aumento = cuánto sube la deuda con la operación. Devuelve true si se puede seguir.
+function controlarCredito(clienteId, aumento) {
+  const c = clientes.find(x => x.id === Number(clienteId));
+  if (!c || !(aumento > 0.009)) return true;
+  if (!c.cta_cte_habilitada) { toast(`"${c.nombre}" no está habilitado para cuenta corriente: solo se le puede vender contado.`, true); return false; }
+  if (c.limite_credito == null) return true;
+  const quedaria = redondear((saldoCliente[c.id] || 0) + aumento);
+  if (quedaria <= Number(c.limite_credito) + 0.009) return true;
+  const msg = `"${c.nombre}" tiene un límite de crédito de ${dinero(c.limite_credito)} y quedaría debiendo ${dinero(quedaria)}.`;
+  if (!esAdmin()) { toast(msg + ' Cobrá antes o pedile a un administrador.', true); return false; }
+  return confirm(msg + '\n\n¿Seguir igual? (sos administrador)');
+}
+
 $('#frmVenta').addEventListener('submit', async e => {
   e.preventDefault();
   const f = $('#frmVenta');
@@ -3378,6 +3412,12 @@ $('#frmVenta').addEventListener('submit', async e => {
   if (!itemsVenta.length) return toast('Agregá al menos un artículo.', true);
   const condicion = f.elements.condicion.value;
   if (condicion === 'Cuenta corriente' && !f.elements.cliente_id.value) return toast('Para vender a cuenta corriente elegí un cliente.', true);
+  if (condicion === 'Cuenta corriente') {
+    const sub = itemsVenta.reduce((t, i) => t + i.cantidad * Number(i.precio_unitario), 0);
+    const tot = sub + redondear(sub * Number(f.elements.percepcion_pct.value || 0) / 100);
+    const deRemitos = itemsVenta.filter(i => i.remito_id).reduce((t, i) => t + Number(i.precio_unitario), 0);   // ya estaban en la cuenta
+    if (!controlarCredito(f.elements.cliente_id.value, tot - deRemitos)) return;
+  }
   if (condicion === 'Contado' && f.elements.medio.value === 'Efectivo' && !turno) return toast('La caja está cerrada: abrí un turno para cobrar en efectivo, o elegí otro medio o cuenta corriente.', true);
   if (txt('nro_factura') && f.elements.tipo_comprobante.value === 'Sin comprobante fiscal') return toast('Elegí el tipo de factura para cargar el número.', true);
   const { data: nuevaId, error } = await sb.rpc('registrar_venta', {
@@ -3708,6 +3748,7 @@ $('#frmPresupuesto').addEventListener('submit', async e => {
     await cargarPresupuestos();
   } else {
     if (!cliente) return toast('El remito va a la cuenta corriente: elegí un cliente.', true);
+    if (!controlarCredito(cliente, itemsDoc.reduce((t, i) => t + Number(i.cantidad) * Number(i.precio_unitario), 0))) return;
     const { data: id, error } = await sb.rpc('crear_remito', {
       p_cliente_id: cliente, p_lista: listaDeDoc(), p_items: itemsParaGuardar(), p_entrega: f.entrega.value, p_notas: f.notas.value });
     if (error) return toast(mensajeError(error, 'Error al generar el remito'), true);
@@ -3775,6 +3816,8 @@ window.confirmarPresupuesto = async id => {
     toast('Para confirmar, el presupuesto tiene que tener un cliente: elegilo y guardá.', true);
     return verPresupuesto(id);
   }
+  if (!clientes.find(c => c.id === p.cliente_id)?.cta_cte_habilitada)
+    return toast('El remito va a la cuenta corriente y este cliente no está habilitado: solo contado. Vendele desde Ventas o pedí que lo habiliten.', true);
   const items = await itemsDe('presupuesto', id); if (!items) return;
   presAConfirmar = p; itemsConfirmar = items;
   const f = $('#frmConfirmarPres');
@@ -3809,6 +3852,7 @@ $('#frmConfirmarPres').addEventListener('submit', async e => {
   e.preventDefault();
   const ids = $$('#tbConfItems input:checked').map(c => Number(c.value));
   if (!ids.length) return toast('Tildá al menos un renglón.', true);
+  if (!controlarCredito(presAConfirmar.cliente_id, itemsConfirmar.filter(i => ids.includes(i.id)).reduce((t, i) => t + i.cantidad * i.precio_unitario, 0))) return;
   const f = $('#frmConfirmarPres').elements;
   const { data: remitoId, error } = await sb.rpc('confirmar_presupuesto', { p_id: presAConfirmar.id, p_items: ids, p_entrega: f.entrega.value, p_notas: f.notas.value });
   if (error) return toast(mensajeError(error, 'No se pudo confirmar'), true);
@@ -4878,19 +4922,23 @@ async function reporteDeudores() {
   await cargarSaldos();
   const filas = [];
   const tot = [0, 0, 0, 0, 0, 0];
+  let totVencido = 0;
   for (const c of clientes) {
     const saldo = redondear(saldoCliente[c.id] || 0);
     if (saldo <= 0.009) continue;
     const tramos = [0, 0, 0, 0];
-    let masViejo = null;
+    let masViejo = null, vencido = 0;
     for (const p of pendientesDeCliente(c.id)) {
       const dias = p.fecha ? diasDesde(p.fecha) : 0;
       tramos[dias <= 30 ? 0 : dias <= 60 ? 1 : dias <= 90 ? 2 : 3] += p.saldo;
+      if (c.plazo_dias != null && dias > c.plazo_dias) vencido += p.saldo;
       if (p.fecha && (!masViejo || p.fecha < masViejo)) masViejo = p.fecha;
     }
     const aCuenta = redondear(tramos.reduce((t, x) => t + x, 0) - saldo);   // cobros sin asignar
-    filas.push([c.nombre, c.telefono || '', saldo, ...tramos.map(redondear), aCuenta > 0.009 ? -aCuenta : 0, masViejo ? `${fecha(masViejo)} (${diasDesde(masViejo)} días)` : '']);
+    vencido = redondear(Math.min(vencido, saldo));
+    filas.push([c.nombre, c.telefono || '', saldo, ...tramos.map(redondear), aCuenta > 0.009 ? -aCuenta : 0, c.plazo_dias != null ? c.plazo_dias : '', vencido, masViejo ? `${fecha(masViejo)} (${diasDesde(masViejo)} días)` : '']);
     [saldo, ...tramos, aCuenta > 0.009 ? -aCuenta : 0].forEach((v, i) => tot[i] += v);
+    totVencido += vencido;
   }
   filas.sort((a, b) => b[2] - a[2]);
   // detalle: cada comprobante (o documento sin facturar) que el cliente tiene pendiente, con sus fechas
@@ -4903,23 +4951,24 @@ async function reporteDeudores() {
       if (s.cliente_id !== c.id || redondear(s.total - s.cobrado) <= 0) continue;
       if (s.tipo === 'Orden' && ordenes.find(o => o.id === s.id)?.estado !== 'Entregado') continue;
       const k = s.comprobante_id ? 'C' + s.comprobante_id : s.tipo + s.id;
-      const g = grupos[k] ??= { doc: s.comprobante || (s.tipo_comprobante === 'Sin comprobante fiscal' ? 'Sin comprobante fiscal' : `Sin facturar (lleva ${s.tipo_comprobante || 'factura'})`),
+      const g = grupos[k] ??= { doc: s.comprobante || (s.tipo === 'Remito' ? 'Remito sin facturar' : s.tipo_comprobante === 'Sin comprobante fiscal' ? 'Sin comprobante fiscal' : `Sin facturar (lleva ${s.tipo_comprobante || 'factura'})`),
                                 incluye: [], fecha: s.fecha, total: 0, cobrado: 0 };
       g.incluye.push(s.detalle); g.total += Number(s.total); g.cobrado += Number(s.cobrado);
       if (s.fecha && (!g.fecha || s.fecha < g.fecha)) g.fecha = s.fecha;
     }
     Object.values(grupos).sort((x, y) => String(x.fecha || '').localeCompare(String(y.fecha || ''))).forEach((g, i) =>
       detalle.push([i === 0 ? f[0] : '', g.doc, g.incluye.join(', '), g.fecha ? fecha(g.fecha) : '', g.fecha ? diasDesde(g.fecha) : '',
+                    c.plazo_dias != null && g.fecha ? (diasDesde(g.fecha) > c.plazo_dias ? 'Vencido' : 'En plazo') : '',
                     redondear(g.total), redondear(g.cobrado), redondear(g.total - g.cobrado)]));
   }
   return {
     titulo: 'Deudores · cuenta corriente', subtitulo: `Al ${fecha(new Date())}`,
-    tarjetas: [['Clientes que deben', String(filas.length)], ['Total a cobrar', dinero(tot[0])], ['Con más de 60 días', dinero(tot[3] + tot[4])]],
-    secciones: [{ titulo: 'Saldo por cliente y antigüedad', columnas: ['Cliente', 'Teléfono', 'Saldo', '0-30 días', '31-60', '61-90', '+90', 'A cuenta sin asignar', 'Deuda más vieja'],
-      nums: [2, 3, 4, 5, 6, 7], filas, totales: ['Total', '', ...tot.map(redondear), ''],
-      nota: 'La antigüedad se cuenta desde la entrega de la orden o la fecha de la venta / abono. "A cuenta sin asignar" son cobros que todavía no se conciliaron.' },
-      { titulo: 'Detalle por cliente: comprobantes pendientes', columnas: ['Cliente', 'Comprobante', 'Incluye', 'Fecha', 'Días', 'Importe', 'Cobrado', 'Debe'],
-        nums: [5, 6, 7], filas: detalle,
+    tarjetas: [['Clientes que deben', String(filas.length)], ['Total a cobrar', dinero(tot[0])], ['Vencido (según plazo)', dinero(totVencido)], ['Con más de 60 días', dinero(tot[3] + tot[4])]],
+    secciones: [{ titulo: 'Saldo por cliente y antigüedad', columnas: ['Cliente', 'Teléfono', 'Saldo', '0-30 días', '31-60', '61-90', '+90', 'A cuenta sin asignar', 'Plazo (días)', 'Vencido', 'Deuda más vieja'],
+      nums: [2, 3, 4, 5, 6, 7, 9], filas, totales: ['Total', '', ...tot.map(redondear), '', redondear(totVencido), ''],
+      nota: 'La antigüedad se cuenta desde la entrega de la orden o la fecha de la venta / abono / remito. "Vencido" es lo que pasó el plazo de pago del cliente (vacío si no tiene plazo). "A cuenta sin asignar" son cobros que todavía no se conciliaron.' },
+      { titulo: 'Detalle por cliente: comprobantes pendientes', columnas: ['Cliente', 'Comprobante', 'Incluye', 'Fecha', 'Días', 'Plazo', 'Importe', 'Cobrado', 'Debe'],
+        nums: [6, 7, 8], filas: detalle,
         nota: 'Las ventas, órdenes y abonos facturados se agrupan por su comprobante fiscal; lo no facturado figura por separado. Ordenado del más viejo al más nuevo.' }],
   };
 }
